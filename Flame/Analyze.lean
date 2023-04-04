@@ -1,14 +1,14 @@
-import Flametc.FlameData
+import Flame.FlameData
 import Lean.Data.Json.Parser
 
-namespace Flametc
+namespace Flame
 
 -- TODO: Maybe add a StateT later
 abbrev TCParseT (m : Type → Type) (α : Type) := ExceptT String m α
 abbrev TCParseM := TCParseT Id
 
 def prefixAtLevel (level : Nat) : String :=
-  go level "" ++ "[Meta.synthInstance"
+  go level "" ++ "["
 where
   go (level : Nat) (acc : String) : String :=
     match level with
@@ -27,11 +27,9 @@ partial def Node.ofTrace (trace : String) : TCParseM Node := do
   let lines := trace.splitOn "\n"
   let (_, root) ← go lines ⟨"root", 0, []⟩ 0
   let time := root.getChildren.foldl (init := 0) (· + ·.getTime)
-  -- TODO: add total amount to this node
   return root.withTime time
 where
   parseLine (trace : String) : TCParseM (Lean.JsonNumber × String) := do
-    -- TODO: optimizable with level
     let trace := Substring.mk trace (trace.find (']' == ·)) trace.endPos |>.toString
     let startOfTime := trace.find ('[' == ·) + ⟨1⟩
     let endOfTime := trace.find ('s' == ·)
@@ -69,4 +67,4 @@ where
         -- Some irrelevant line to the trace, continue
         go rest current level
 
-end Flametc
+end Flame

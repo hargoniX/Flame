@@ -1,22 +1,10 @@
 import Lean.Data.Json.FromToJson
 
-namespace Flametc
+namespace Flame
 
 inductive Node where
 | mk (name : String) (value : Lean.JsonNumber) (children : List Node)
 deriving Inhabited, Repr
-
-partial def Node.toJson (node : Node) : Lean.Json :=
-  match node with
-  | .mk name value children =>
-    Lean.Json.mkObj [
-      ("name", name),
-      ("value", Lean.toJson value),
-      ("children", Lean.toJson <| children.map Node.toJson)
-    ]
-
-instance : Lean.ToJson Node where
-  toJson := Node.toJson
 
 def Node.addChild (node child : Node) : Node :=
   match node with
@@ -38,4 +26,4 @@ def Node.withTime (node : Node) (time : Lean.JsonNumber) : Node :=
   match node with
   | .mk name _ children => .mk name time children 
 
-end Flametc
+end Flame

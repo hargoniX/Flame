@@ -1,15 +1,15 @@
 import Lake
 open Lake DSL
 
-package «flametc» {
+package «flame» {
   -- add package configuration options here
 }
 
-lean_lib «Flametc» {
+lean_lib «Flame» {
   -- add library configuration options here
 }
 
 @[default_target]
-lean_exe «flametc» {
+lean_exe «flame» {
   root := `Main
 }
