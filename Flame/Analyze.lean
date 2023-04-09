@@ -23,9 +23,8 @@ instance : Add Lean.JsonNumber where
     let finalMantissa := adjustedRhs + smaller.mantissa
     { mantissa := finalMantissa, exponent := smaller.exponent}
 
-partial def Node.ofTrace (trace : String) : TCParseM Node := do
-  let lines := trace.splitOn "\n"
-  let (_, root) ← go lines ⟨"root", 0, []⟩ 0
+partial def Node.ofTrace : TCParseT IO Node := do
+  let root ← go (← nextLine) ⟨"root", 0, []⟩ 0
   return root
 where
   parseLine (trace : String) : TCParseM (Lean.JsonNumber × String) := do
@@ -38,10 +37,14 @@ where
     let name := Substring.mk trace startOfName trace.endPos |>.toString
     return (time, name)
 
-  go (lines : List String) (current : Node) (level : Nat) : TCParseM (List String × Node) := do
-    match lines with
-    | [] => return ([], current)
-    | line :: rest =>
+  nextLine : IO String := do
+    let line ← (← IO.getStdin).getLine
+    return line.trimRight
+
+  go (currentLine : String) (current : Node) (level : Nat) : TCParseT IO Node := do
+    match currentLine with
+    | "" => return current
+    | line =>
       let pref := prefixAtLevel level
       -- TODO perf is optimiztable by using level + 1 and slicing
       -- We are still at the current level
@@ -50,20 +53,20 @@ where
         -- for lines with no time attached
         if let .ok (time, name) := parseLine line then
           let newNode := ⟨name, time, []⟩
-          go rest (current.addChild newNode) level
+          go (← nextLine) (current.addChild newNode) level
         else
-          go rest current level
+          go (← nextLine) current level
       -- We are one level deeper now
       else if line.startsWith ("  " ++ pref) then
         let (nextNode :: otherNodes) := current.getChildren | throw "should be unreachable"
-        let (rest, finalNextNode) ← go lines nextNode (level + 1)
+        let finalNextNode ← go currentLine nextNode (level + 1)
         let current := current.withChildren (finalNextNode :: otherNodes) 
-        go rest current level
+        go (← nextLine) current level
       -- We are at a higher level now 
       else if level > 0 && line.trimLeft.startsWith (prefixAtLevel 0) then
-        return (lines, current)
+        return current
       else
         -- Some irrelevant line to the trace, continue
-        go rest current level
+        go (← nextLine) current level
 
 end Flame
