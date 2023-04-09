@@ -26,8 +26,7 @@ instance : Add Lean.JsonNumber where
 partial def Node.ofTrace (trace : String) : TCParseM Node := do
   let lines := trace.splitOn "\n"
   let (_, root) ← go lines ⟨"root", 0, []⟩ 0
-  let time := root.getChildren.foldl (init := 0) (· + ·.getTime)
-  return root.withTime time
+  return root
 where
   parseLine (trace : String) : TCParseM (Lean.JsonNumber × String) := do
     let trace := Substring.mk trace (trace.find (']' == ·)) trace.endPos |>.toString

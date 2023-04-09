@@ -6,11 +6,11 @@ partial def Node.collapsedStackStrings (node : Node) (trace : List String := [])
   match node with
   | .mk name seconds children =>
     let microseconds := seconds.shiftl 6 |>.toFloat.toUInt64
-    let pref := String.intercalate ";" trace
     let newTrace := trace ++ [name]
-    s!"{pref}{name} {microseconds}" :: (children.bind (Node.collapsedStackStrings · newTrace))
+    s!"{String.intercalate ";" newTrace} {microseconds}" :: (children.bind (Node.collapsedStackStrings · newTrace))
 
 def output (node : Node) : String :=
-  String.intercalate "\n" node.collapsedStackStrings
+  let strings := node.getChildren.bind (Node.collapsedStackStrings)
+  String.intercalate "\n" strings
 
 end Flame
