@@ -15,14 +15,6 @@ where
     | 0 => acc
     | n + 1 => go n (acc ++ "  ")
 
-instance : Add Lean.JsonNumber where
-  add lhs rhs :=
-    let (bigger, smaller) := if lhs.exponent < rhs.exponent then (lhs, rhs) else (rhs, lhs)
-    let factor := 10^(smaller.exponent - bigger.exponent)
-    let adjustedRhs := bigger.mantissa * factor
-    let finalMantissa := adjustedRhs + smaller.mantissa
-    { mantissa := finalMantissa, exponent := smaller.exponent}
-
 partial def Node.ofTrace : TCParseT IO Node := do
   let root ← go (← nextLine) ⟨"root", 0, []⟩ 0
   return root
@@ -51,8 +43,9 @@ where
       if line.startsWith pref then
         -- since i am too lazy to parse all lines properly we just ask for forgiveness
         -- for lines with no time attached
-        if let .ok (time, name) := parseLine line then
-          let newNode := ⟨name, time, []⟩
+        if let .ok (seconds, name) := parseLine line then
+          let microseconds := seconds.shiftl 6 |>.toFloat.toUInt64
+          let newNode := ⟨name, microseconds, []⟩
           go (← nextLine) (current.addChild newNode) level
         else
           go (← nextLine) current level
