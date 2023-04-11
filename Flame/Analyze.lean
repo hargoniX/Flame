@@ -15,9 +15,57 @@ where
     | 0 => acc
     | n + 1 => go n (acc ++ "  ")
 
+structure Position where
+  current : Node
+  before : List Node
+  after : List Node
+  path : List (List Node × Node × List Node)
+deriving Inhabited, Repr
+
+namespace Position
+
+def up! (pos : Position) : Position :=
+  match pos.path with
+  | ((before, parent, after) :: path) =>
+    {
+      current := parent.withChildren (pos.before ++ [pos.current] ++ pos.after) 
+      before := before
+      after := after
+      path := path
+    }
+  | _ => panic! "Cannot go further up"
+
+def upN! (pos : Position) (n : Nat) : Position :=
+  match n with
+  | 0 => pos
+  | n + 1 => upN! (pos.up!) n
+
+def down! (pos : Position) : Position :=
+  match pos.current.getChildren with
+  | [] => panic! "Cannot go further downn"
+  | c :: cs =>
+    {
+      current := c
+      before := []
+      after := cs
+      path := (pos.before, pos.current, pos.after) :: pos.path
+    }
+
+partial def root! (pos : Position) : Node :=
+  match pos with
+  | .mk curr [] [] [] => curr
+  | _ => root! pos.up!
+
+def addChild (pos : Position) (n : Node) : Position :=
+  { pos with current := pos.current.addChild n }
+
+end Position 
+
+ 
+
 partial def Node.ofTrace : TCParseT IO Node := do
-  let root ← go (← nextLine) ⟨"root", 0, []⟩ 0
-  return root
+  let pos ← go (← nextLine) ⟨⟨"root", 0, []⟩, [], [], []⟩ 0
+  return pos.root!
 where
   parseLine (trace : String) : TCParseM (Lean.JsonNumber × String) := do
     let trace := Substring.mk trace (trace.find (']' == ·)) trace.endPos |>.toString
@@ -33,33 +81,31 @@ where
     let line ← (← IO.getStdin).getLine
     return line.trimRight
 
-  go (currentLine : String) (current : Node) (level : Nat) : TCParseT IO Node := do
+  go (currentLine : String) (pos : Position) (level : Nat) : TCParseT IO Position := do
     match currentLine with
-    | "" => return current
+    | "" => return pos
     | line =>
       let pref := prefixAtLevel level
-      -- TODO perf is optimiztable by using level + 1 and slicing
-      -- We are still at the current level
       if line.startsWith pref then
         -- since i am too lazy to parse all lines properly we just ask for forgiveness
         -- for lines with no time attached
         if let .ok (seconds, name) := parseLine line then
           let microseconds := seconds.shiftl 6 |>.toFloat.toUInt64
           let newNode := ⟨name, microseconds, []⟩
-          go (← nextLine) (current.addChild newNode) level
+          go (← nextLine) (pos.addChild newNode) level
         else
-          go (← nextLine) current level
-      -- We are one level deeper now
+          go (← nextLine) pos level
       else if line.startsWith ("  " ++ pref) then
-        let (nextNode :: otherNodes) := current.getChildren | throw "should be unreachable"
-        let finalNextNode ← go currentLine nextNode (level + 1)
-        let current := current.withChildren (finalNextNode :: otherNodes) 
-        go (← nextLine) current level
-      -- We are at a higher level now 
+        -- We are one level deeper now
+        go currentLine pos.down! (level + 1)
       else if level > 0 && line.trimLeft.startsWith (prefixAtLevel 0) then
-        return current
+        -- very hacky way to get amount of leading whitespacesf
+        let leadingWhitespaces := line.length - line.trimLeft.length
+        let stepSize := (level * 2 - leadingWhitespaces) / 2
+        let pos := pos.upN! stepSize
+        go line pos (level - stepSize)
       else
         -- Some irrelevant line to the trace, continue
-        go (← nextLine) current level
-
+        go (← nextLine) pos level
+      
 end Flame

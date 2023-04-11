@@ -31,5 +31,17 @@ def withTime (node : Node) (time : UInt64) : Node :=
   | .mk name _ children => .mk name time children 
 
 
+partial def toString (node : Node) : String :=
+  String.intercalate "\n" (go node 0)
+where
+  nWhiteSpaces (n : Nat) : String := n.fold (init := "") (fun _ acc => acc ++ " ")
+  go (node : Node) (indent : Nat) : List String :=
+    match node with
+    | mk name value children =>
+      s!"{nWhiteSpaces indent}[{value}us] {name}" :: children.bind (go · (indent + 2))
+
+instance : ToString Node where
+  toString := toString
+
 end Node
 end Flame
