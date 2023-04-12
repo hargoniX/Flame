@@ -1,53 +1,41 @@
-# FlameTC
-View your Lean 4 typeclass synthesis trace as a flamegraph in your browser.
+# LeanFlame
+View your Lean 4 compiler trace as a flamegraph.
 
 ## How does it work
 You compile the tool using `lake build`, then you run it like so:
 ```
-$ ./build/bin/flametc trace.txt
+$ cat trace.txt | ./build/bin/flame > out.txt
 ```
 where `trace.txt` is output from your Lean infoview with the options:
 ```lean
-set_option profiler true
-set_option trace.Meta.synthInstance true
+set_option trace.profiler true
+set_option pp.oneline true
 ```
 enabled either just in some block of your code or the entire file.
 Alternatively you can also run:
 ```
-$ lake env lean -D profiler=true -D trace.Meta.synthInstance=true file.lean > trace.txt
+$ lake env lean -D trace.profiler=true -D pp.oneline=true file.lean > trace.txt
 ```
-To obtain a trace for an entire file without editing it. Note that this assumes
-your file is not outputting anything else in the info view while getting
-compiled. You can also concatenate multiple traces into one big file if you desire:
+or also directly!
+```
+$ lake env lean -D trace.profiler=true -D pp.oneline=true file.lean | /path/to/flame > out.txt
+```
+To obtain a trace for an entire file without editing it.
+You can also concatenate multiple traces into one big file if you desire:
 ```
 $ cat trace1.txt trace2.txt > trace.txt
 ```
-
-FlameTC will store its output in `./build/flametc` consisting of two files, `data.json`
-and `index.html`, you need to host it locally with for example pythons buit-in
-webserver:
+LeanFlame will print its output in the [collapsed stack format](https://github.com/BrendanGregg/flamegraph#2-fold-stacks)
+you can use them with for example the `flamegraph.pl` script from the original
+flamegraph implementation repository or use an online viewer like
+[speedscope](https://www.speedscope.app).
+## Example
+This example shows how to obtain a trace from the file with (currently) the most lines in
+`std4`:
 ```
-$ python3 -m http.server
+$ lake env lean -D trace.profiler=true -D pp.oneline=true Std/Data/List/Lemmas.lean | ../flame/build/bin/flame > trace.txt
+$ wc -l trace.txt
+1007 trace.txt
+$ flamegraph.pl trace.txt > test.svg
 ```
-afterwards you can visit [http://0.0.0.0:8000](http://0.0.0.0:8000) to view your
-result. For big searches the graph will usually look a little convoluted but
-it can still be useful as explained in the next section.
-
-## How to use it
-While I am by no means an expert on performance analysis of Lean's type class
-synthesis here are a few "primitives" that might be interesting for analysis:
-### Zooming in on subqueries
-![zoomed out](./img/aesop-root.png)
-![zoomed in](./img/aesop-zoom.png)
-### Filtering for names
-You can filter using regex for:
-- names of typeclasses: `MonadRef`
-- names of types: `MyMonad`
-- or also whole queries: `MonadRef \(MyMonad` (The backslash is for regex)
-![MonadRef Aesop.SearchM](./img/aesop-monadref.png)
-### Filtering for succeeding or failing queries
-You can filter for succeeding or failing queries by looking for the unicode
-symbols associated with them in the info view like ❌, 💥 and ✅.
-This is for example useful if you want to know whether lots of failures
-in TC synthesis are slowing things down (also combinable with regex as seen below):
-![Failing synthesis in a Mathlib MWE](./img/mathlib-mwe-fail.png)
+Resulting in ![this](./img/test.svg)
