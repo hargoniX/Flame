@@ -43,5 +43,10 @@ where
 instance : ToString Node where
   toString := toString
 
+partial def postprocess (node : Node) : Node :=
+  match node with
+  | mk name value children =>
+    .mk name value (children.reverse.map postprocess)
+
 end Node
 end Flame

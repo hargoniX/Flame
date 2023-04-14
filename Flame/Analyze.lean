@@ -61,11 +61,10 @@ def addChild (pos : Position) (n : Node) : Position :=
 
 end Position 
 
- 
 
 partial def Node.ofTrace : TCParseT IO Node := do
   let pos ← go (← nextLine) ⟨⟨"root", 0, []⟩, [], [], []⟩ 0
-  return pos.root!
+  return pos.root!.postprocess
 where
   parseLine (trace : String) : TCParseM (Lean.JsonNumber × String) := do
     let trace := Substring.mk trace (trace.find (']' == ·)) trace.endPos |>.toString
